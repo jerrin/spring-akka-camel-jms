@@ -1,0 +1,50 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ctx="http://www.springframework.org/schema/context"
+	xmlns:amq="http://activemq.apache.org/schema/core"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+						http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd
+						http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.8.0.xsd">
+
+	<amq:broker id="broker" useJmx="false" persistent="true"
+		deleteAllMessagesOnStartup="true" start="true">
+		<amq:transportConnectors>
+			<amq:transportConnector uri="tcp://localhost:61616" />
+		</amq:transportConnectors>
+		<amq:managementContext>
+			<amq:managementContext connectorPort="1099"
+				jmxDomainName="localhost" />
+		</amq:managementContext>
+		<amq:destinationPolicy>
+			<amq:policyMap>
+				<amq:policyEntries>
+					<amq:policyEntry queue="data.stream" producerFlowControl="false"/>
+				</amq:policyEntries>
+			</amq:policyMap>
+		</amq:destinationPolicy>
+	</amq:broker>
+
+	<amq:queue id="distributor" physicalName="data.stream" />
+
+	<bean id="connectionFactory"
+		class="org.springframework.jms.connection.CachingConnectionFactory" depends-on="broker">
+
+<!-- 	<bean id="connectionFactory"
+		class="org.springframework.jms.connection.CachingConnectionFactory">
+ -->		
+ 		<property name="targetConnectionFactory">
+			<amq:connectionFactory brokerURL="tcp://localhost:61616"
+				alwaysSessionAsync="true" dispatchAsync="true" producerWindowSize="1024000"
+				useAsyncSend="true" />
+		</property>
+	</bean>
+
+	<bean id="jmsConfiguration" class="org.apache.camel.component.jms.JmsConfiguration">
+		<constructor-arg ref="connectionFactory" />
+		<property name="deliveryPersistent" value="false" />
+	</bean>
+
+	<bean id="jmsComponent" class="org.apache.camel.component.jms.JmsComponent">
+		<constructor-arg ref="jmsConfiguration" />
+	</bean>
+
+</beans>
